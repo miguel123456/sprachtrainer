@@ -9,6 +9,7 @@ import android.support.design.widget.Snackbar;
 import android.support.v7.app.AppCompatActivity;
 import android.app.LoaderManager.LoaderCallbacks;
 
+
 import android.content.CursorLoader;
 import android.content.Loader;
 import android.database.Cursor;
@@ -19,6 +20,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.provider.ContactsContract;
 import android.text.TextUtils;
+import android.util.Log;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.View.OnClickListener;
@@ -28,22 +30,34 @@ import android.widget.AutoCompleteTextView;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
+import android.widget.Toast;
+
+import com.example.user.sprachtrainer.models.Login;
+import com.example.user.sprachtrainer.models.User;
+import com.example.user.sprachtrainer.utils.SessionPrefs;
+import com.google.gson.Gson;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.lang.RuntimeException;
+import  java.lang.Object;
+
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
+import retrofit2.Retrofit;
+import retrofit2.converter.gson.GsonConverterFactory;
 
 import static android.Manifest.permission.READ_CONTACTS;
 
 /**
  * A login screen that offers login via email/password.
  */
-public class LoginActivity extends AppCompatActivity implements LoaderCallbacks<Cursor> {
-
+public class LoginActivity extends AppCompatActivity  {
     /**
      * Id to identity READ_CONTACTS permission request.
      */
     private static final int REQUEST_READ_CONTACTS = 0;
-
     /**
      * A dummy authentication store containing known user names and passwords.
      * TODO: remove after connecting to a real authentication system.
@@ -54,6 +68,9 @@ public class LoginActivity extends AppCompatActivity implements LoaderCallbacks<
     /**
      * Keep track of the login task to ensure we can cancel it if requested.
      */
+    private Retrofit mRestAdapter;
+    private SprachtrainerService SprachtrainerServiceApi;
+
     private UserLoginTask mAuthTask = null;
 
     // UI references.
@@ -66,10 +83,14 @@ public class LoginActivity extends AppCompatActivity implements LoaderCallbacks<
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_login);
+
+        //Set up Server connection
+        mRestAdapter = new Retrofit.Builder().baseUrl(SprachtrainerService.BASE_URL).
+                addConverterFactory(GsonConverterFactory.create()).build();
+        SprachtrainerServiceApi= mRestAdapter.create(SprachtrainerService.class);
+        //
         // Set up the login form.
         mEmailView = (AutoCompleteTextView) findViewById(R.id.email);
-        populateAutoComplete();
-
         mPasswordView = (EditText) findViewById(R.id.password);
         mPasswordView.setOnEditorActionListener(new TextView.OnEditorActionListener() {
             @Override
@@ -93,53 +114,271 @@ public class LoginActivity extends AppCompatActivity implements LoaderCallbacks<
         mLoginFormView = findViewById(R.id.login_form);
         mProgressView = findViewById(R.id.login_progress);
     }
-
-    private void populateAutoComplete() {
-        if (!mayRequestContacts()) {
-            return;
-        }
-
-        getLoaderManager().initLoader(0, null, this);
-    }
-
-    private boolean mayRequestContacts() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
-            return true;
-        }
-        if (checkSelfPermission(READ_CONTACTS) == PackageManager.PERMISSION_GRANTED) {
-            return true;
-        }
-        if (shouldShowRequestPermissionRationale(READ_CONTACTS)) {
-            Snackbar.make(mEmailView, R.string.permission_rationale, Snackbar.LENGTH_INDEFINITE)
-                    .setAction(android.R.string.ok, new View.OnClickListener() {
-                        @Override
-                        @TargetApi(Build.VERSION_CODES.M)
-                        public void onClick(View v) {
-                            requestPermissions(new String[]{READ_CONTACTS}, REQUEST_READ_CONTACTS);
-                        }
-                    });
-        } else {
-            requestPermissions(new String[]{READ_CONTACTS}, REQUEST_READ_CONTACTS);
-        }
-        return false;
-    }
-
     /**
-     * Callback received when a permissions request has been completed.
-     */
-    @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
-                                           @NonNull int[] grantResults) {
-        if (requestCode == REQUEST_READ_CONTACTS) {
-            if (grantResults.length == 1 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                populateAutoComplete();
-            }
-        }
-    }
-
-
-    /**
-     * Attempts to sign in or register the account specified by the login form.
+     * Attempts to sign in or re
+     * 11/18 18:31:30: Launching app
+     * $ adb install-multiple -r -t -p com.example.user.sprachtrainer C:\Users\User\AndroidStudioProjects\sprachtrainer\app\build\intermediates\split-apk\debug\slices\slice_4.apk
+     * Split APKs installed in 17 s 912 ms
+     * $ adb shell am start -n "com.example.user.sprachtrainer/com.example.user.sprachtrainer.LoginActivity" -a android.intent.action.MAIN -c android.intent.category.LAUNCHER
+     * Client not ready yet..Waiting for process to come online
+     * Connected to process 18016 on device samsung-sm_a600fn-5200981b5e6e9595
+     * Capturing and displaying logcat messages from application. This behavior can be disabled in the "Logcat output" section of the "Debugger" settings page.
+     * I/zygote: no shared libraies, dex_files: 1
+     * I/InstantRun: starting instant run server: is main process
+     * I/zygote: Rejecting re-init on previously-failed class java.lang.Class<android.support.v4.view.ViewCompat$OnUnhandledKeyEventListenerWrapper>: java.lang.NoClassDefFoundError: Failed resolution of: Landroid/view/View$OnUnhandledKeyEventListener;
+     *         at void android.support.v4.view.ViewCompat.setBackground(android.view.View, android.graphics.drawable.Drawable) (ViewCompat.java:2341)
+     *         at void android.support.v7.widget.ActionBarContainer.<init>(android.content.Context, android.util.AttributeSet) (ActionBarContainer.java:62)
+     *         at java.lang.Object java.lang.reflect.Constructor.newInstance0(java.lang.Object[]) (Constructor.java:-2)
+     *         at java.lang.Object java.lang.reflect.Constructor.newInstance(java.lang.Object[]) (Constructor.java:334)
+     *         at android.view.View android.view.LayoutInflater.createView(java.lang.String, java.lang.String, android.util.AttributeSet) (LayoutInflater.java:647)
+     *         at android.view.View android.view.LayoutInflater.createViewFromTag(android.view.View, java.lang.String, android.content.Context, android.util.AttributeSet, boolean) (LayoutInflater.java:790)
+     *         at android.view.View android.view.LayoutInflater.createViewFromTag(android.view.View, java.lang.String, android.content.Context, android.util.AttributeSet) (LayoutInflater.java:730)
+     *         at void android.view.LayoutInflater.rInflate(org.xmlpull.v1.XmlPullParser, android.view.View, android.content.Context, android.util.AttributeSet, boolean) (LayoutInflater.java:863)
+     *         at void android.view.LayoutInflater.rInflateChildren(org.xmlpull.v1.XmlPullParser, android.view.View, android.util.AttributeSet, boolean) (LayoutInflater.java:824)
+     *         at android.view.View android.view.LayoutInflater.inflate(org.xmlpull.v1.XmlPullParser, android.view.ViewGroup, boolean) (LayoutInflater.java:515)
+     *         at android.view.View android.view.LayoutInflater.inflate(int, android.view.ViewGroup, boolean) (LayoutInflater.java:423)
+     *         at android.view.View android.view.LayoutInflater.inflate(int, android.view.ViewGroup) (LayoutInflater.java:374)
+     *         at android.view.ViewGroup android.support.v7.app.AppCompatDelegateImpl.createSubDecor() (AppCompatDelegateImpl.java:607)
+     *         at void android.support.v7.app.AppCompatDelegateImpl.ensureSubDecor() (AppCompatDelegateImpl.java:518)
+     *         at void android.support.v7.app.AppCompatDelegateImpl.setContentView(int) (AppCompatDelegateImpl.java:466)
+     *         at void android.support.v7.app.AppCompatActivity.setContentView(int) (AppCompatActivity.java:140)
+     *         at void com.example.user.sprachtrainer.LoginActivity.onCreate(android.os.Bundle) (LoginActivity.java:82)
+     *         at void android.app.Activity.performCreate(android.os.Bundle) (Activity.java:7183)
+     * I/zygote:     at void android.app.Instrumentation.callActivityOnCreate(android.app.Activity, android.os.Bundle) (Instrumentation.java:1220)
+     *         at android.app.Activity android.app.ActivityThread.performLaunchActivity(android.app.ActivityThread$ActivityClientRecord, android.content.Intent) (ActivityThread.java:2910)
+     *         at void android.app.ActivityThread.handleLaunchActivity(android.app.ActivityThread$ActivityClientRecord, android.content.Intent, java.lang.String) (ActivityThread.java:3032)
+     *         at void android.app.ActivityThread.-wrap11(android.app.ActivityThread, android.app.ActivityThread$ActivityClientRecord, android.content.Intent, java.lang.String) (ActivityThread.java:-1)
+     *         at void android.app.ActivityThread$H.handleMessage(android.os.Message) (ActivityThread.java:1696)
+     *         at void android.os.Handler.dispatchMessage(android.os.Message) (Handler.java:105)
+     *         at void android.os.Looper.loop() (Looper.java:164)
+     *         at void android.app.ActivityThread.main(java.lang.String[]) (ActivityThread.java:6944)
+     *         at java.lang.Object java.lang.reflect.Method.invoke(java.lang.Object, java.lang.Object[]) (Method.java:-2)
+     *         at void com.android.internal.os.Zygote$MethodAndArgsCaller.run() (Zygote.java:327)
+     *         at void com.android.internal.os.ZygoteInit.main(java.lang.String[]) (ZygoteInit.java:1374)
+     *     Caused by: java.lang.ClassNotFoundException: Didn't find class "android.view.View$OnUnhandledKeyEventListener" on path: DexPathList[[zip file "/data/app/com.example.user.sprachtrainer-BGV_PW9toO8U2ZNa0ACi8A==/base.apk", zip file "/data/app/com.example.user.sprachtrainer-BGV_PW9toO8U2ZNa0ACi8A==/split_lib_dependencies_apk.apk", zip file "/data/app/com.example.user.sprachtrainer-BGV_PW9toO8U2ZNa0ACi8A==/split_lib_resources_apk.apk", zip file "/data/app/com.example.user.sprachtrainer-BGV_PW9toO8U2ZNa0ACi8A==/split_lib_slice_0_apk.apk", zip file "/data/app/com.example.user.sprachtrainer-BGV_PW9toO8U2ZNa0ACi8A==/split_lib_slice_1_apk.apk", zip file "/data/app/com.example.user.sprachtrainer-BGV_PW9toO8U2ZNa0ACi8A==/split_lib_slice_2_apk.apk", zip file "/data/app/com.example.user.sprachtrainer-BGV_PW9toO8U2ZNa0ACi8A==/split_lib_slice_3_apk.apk", zip file "/data/app/com.example.user.sprachtrainer-BGV_PW9toO8U2ZNa0ACi8A==/split_lib_slice_4_apk.apk", zip file "/data/app/com.example.user.sprachtrainer-BGV_PW9toO8U2ZNa0
+     *         at java.lang.Class dalvik.system.BaseDexClassLoader.findClass(java.lang.String) (BaseDexClassLoader.java:93)
+     *         at java.lang.Class java.lang.ClassLoader.loadClass(java.lang.String, boolean) (ClassLoader.java:379)
+     *         at java.lang.Class java.lang.ClassLoader.loadClass(java.lang.String) (ClassLoader.java:312)
+     *         at void android.support.v4.view.ViewCompat.setBackground(android.view.View, android.graphics.drawable.Drawable) (ViewCompat.java:2341)
+     *         at void android.support.v7.widget.ActionBarContainer.<init>(android.content.Context, android.util.AttributeSet) (ActionBarContainer.java:62)
+     *         at java.lang.Object java.lang.reflect.Constructor.newInstance0(java.lang.Object[]) (Constructor.java:-2)
+     *         at java.lang.Object java.lang.reflect.Constructor.newInstance(java.lang.Object[]) (Constructor.java:334)
+     *         at android.view.View android.view.LayoutInflater.createView(java.lang.String, java.lang.String, android.util.AttributeSet) (LayoutInflater.java:647)
+     *         at android.view.View android.view.LayoutInflater.createViewFromTag(android.view.View, java.lang.String, android.content.Context, android.util.AttributeSet, boolean) (LayoutInflater.java:790)
+     *         at android.view.View android.view.LayoutInflater.createViewFromTag(android.view.View, java.lang.String, android.content.Context, android.util.AttributeSet) (LayoutInflater.java:730)
+     *         at void android.view.LayoutInflater.rInflate(org.xmlpull.v1.XmlPullParser, android.view.View, android.content.Context, android.util.AttributeSet, boolean) (LayoutInflater.java:863)
+     *         at void android.view.LayoutInflater.rInflateChildren(org.xmlpull.v1.XmlPullParser, android.view.View, android.util.AttributeSet, boolean) (LayoutInflater.java:824)
+     *         at android.view.View android.view.LayoutInflater.inflate(org.xmlpull.v1.XmlPullParser, android.view.ViewGroup, boolean) (LayoutInflater.java:515)
+     *         at android.view.View android.view.LayoutInflater.inflate(int, android.view.ViewGroup, boolean) (LayoutInflater.java:423)
+     *         at android.view.View android.view.LayoutInflater.inflate(int, android.view.ViewGroup) (LayoutInflater.java:374)
+     *         at android.view.ViewGroup android.support.v7.app.AppCompatDelegateImpl.createSubDecor() (AppCompatDelegateImpl.java:607)
+     *         at void android.support.v7.app.AppCompatDelegateImpl.ensureSubDecor() (AppCompatDelegateImpl.java:518)
+     *         at void android.support.v7.app.AppCompatDelegateImpl.setContentView(int) (AppCompatDelegateImpl.java:466)
+     * I/zygote:     at void android.support.v7.app.AppCompatActivity.setContentView(int) (AppCompatActivity.java:140)
+     *         at void com.example.user.sprachtrainer.LoginActivity.onCreate(android.os.Bundle) (LoginActivity.java:82)
+     *         at void android.app.Activity.performCreate(android.os.Bundle) (Activity.java:7183)
+     *         at void android.app.Instrumentation.callActivityOnCreate(android.app.Activity, android.os.Bundle) (Instrumentation.java:1220)
+     *         at android.app.Activity android.app.ActivityThread.performLaunchActivity(android.app.ActivityThread$ActivityClientRecord, android.content.Intent) (ActivityThread.java:2910)
+     *         at void android.app.ActivityThread.handleLaunchActivity(android.app.ActivityThread$ActivityClientRecord, android.content.Intent, java.lang.String) (ActivityThread.java:3032)
+     *         at void android.app.ActivityThread.-wrap11(android.app.ActivityThread, android.app.ActivityThread$ActivityClientRecord, android.content.Intent, java.lang.String) (ActivityThread.java:-1)
+     *         at void android.app.ActivityThread$H.handleMessage(android.os.Message) (ActivityThread.java:1696)
+     *         at void android.os.Handler.dispatchMessage(android.os.Message) (Handler.java:105)
+     *         at void android.os.Looper.loop() (Looper.java:164)
+     *         at void android.app.ActivityThread.main(java.lang.String[]) (ActivityThread.java:6944)
+     *         at java.lang.Object java.lang.reflect.Method.invoke(java.lang.Object, java.lang.Object[]) (Method.java:-2)
+     *         at void com.android.internal.os.Zygote$MethodAndArgsCaller.run() (Zygote.java:327)
+     * I/zygote:     at void com.android.internal.os.ZygoteInit.main(java.lang.String[]) (ZygoteInit.java:1374)
+     * I/zygote: Rejecting re-init on previously-failed class java.lang.Class<android.support.v4.view.ViewCompat$OnUnhandledKeyEventListenerWrapper>: java.lang.NoClassDefFoundError: Failed resolution of: Landroid/view/View$OnUnhandledKeyEventListener;
+     *         at void android.support.v4.view.ViewCompat.setBackground(android.view.View, android.graphics.drawable.Drawable) (ViewCompat.java:2341)
+     *         at void android.support.v7.widget.ActionBarContainer.<init>(android.content.Context, android.util.AttributeSet) (ActionBarContainer.java:62)
+     *         at java.lang.Object java.lang.reflect.Constructor.newInstance0(java.lang.Object[]) (Constructor.java:-2)
+     *         at java.lang.Object java.lang.reflect.Constructor.newInstance(java.lang.Object[]) (Constructor.java:334)
+     *         at android.view.View android.view.LayoutInflater.createView(java.lang.String, java.lang.String, android.util.AttributeSet) (LayoutInflater.java:647)
+     *         at android.view.View android.view.LayoutInflater.createViewFromTag(android.view.View, java.lang.String, android.content.Context, android.util.AttributeSet, boolean) (LayoutInflater.java:790)
+     *         at android.view.View android.view.LayoutInflater.createViewFromTag(android.view.View, java.lang.String, android.content.Context, android.util.AttributeSet) (LayoutInflater.java:730)
+     *         at void android.view.LayoutInflater.rInflate(org.xmlpull.v1.XmlPullParser, android.view.View, android.content.Context, android.util.AttributeSet, boolean) (LayoutInflater.java:863)
+     *         at void android.view.LayoutInflater.rInflateChildren(org.xmlpull.v1.XmlPullParser, android.view.View, android.util.AttributeSet, boolean) (LayoutInflater.java:824)
+     *         at android.view.View android.view.LayoutInflater.inflate(org.xmlpull.v1.XmlPullParser, android.view.ViewGroup, boolean) (LayoutInflater.java:515)
+     *         at android.view.View android.view.LayoutInflater.inflate(int, android.view.ViewGroup, boolean) (LayoutInflater.java:423)
+     *         at android.view.View android.view.LayoutInflater.inflate(int, android.view.ViewGroup) (LayoutInflater.java:374)
+     *         at android.view.ViewGroup android.support.v7.app.AppCompatDelegateImpl.createSubDecor() (AppCompatDelegateImpl.java:607)
+     *         at void android.support.v7.app.AppCompatDelegateImpl.ensureSubDecor() (AppCompatDelegateImpl.java:518)
+     *         at void android.support.v7.app.AppCompatDelegateImpl.setContentView(int) (AppCompatDelegateImpl.java:466)
+     *         at void android.support.v7.app.AppCompatActivity.setContentView(int) (AppCompatActivity.java:140)
+     *         at void com.example.user.sprachtrainer.LoginActivity.onCreate(android.os.Bundle) (LoginActivity.java:82)
+     * I/zygote:     at void android.app.Activity.performCreate(android.os.Bundle) (Activity.java:7183)
+     *         at void android.app.Instrumentation.callActivityOnCreate(android.app.Activity, android.os.Bundle) (Instrumentation.java:1220)
+     *         at android.app.Activity android.app.ActivityThread.performLaunchActivity(android.app.ActivityThread$ActivityClientRecord, android.content.Intent) (ActivityThread.java:2910)
+     *         at void android.app.ActivityThread.handleLaunchActivity(android.app.ActivityThread$ActivityClientRecord, android.content.Intent, java.lang.String) (ActivityThread.java:3032)
+     *         at void android.app.ActivityThread.-wrap11(android.app.ActivityThread, android.app.ActivityThread$ActivityClientRecord, android.content.Intent, java.lang.String) (ActivityThread.java:-1)
+     *         at void android.app.ActivityThread$H.handleMessage(android.os.Message) (ActivityThread.java:1696)
+     *         at void android.os.Handler.dispatchMessage(android.os.Message) (Handler.java:105)
+     *         at void android.os.Looper.loop() (Looper.java:164)
+     *         at void android.app.ActivityThread.main(java.lang.String[]) (ActivityThread.java:6944)
+     *         at java.lang.Object java.lang.reflect.Method.invoke(java.lang.Object, java.lang.Object[]) (Method.java:-2)
+     *         at void com.android.internal.os.Zygote$MethodAndArgsCaller.run() (Zygote.java:327)
+     *         at void com.android.internal.os.ZygoteInit.main(java.lang.String[]) (ZygoteInit.java:1374)
+     *     Caused by: java.lang.ClassNotFoundException: Didn't find class "android.view.View$OnUnhandledKeyEventListener" on path: DexPathList[[zip file "/data/app/com.example.user.sprachtrainer-BGV_PW9toO8U2ZNa0ACi8A==/base.apk", zip file "/data/app/com.example.user.sprachtrainer-BGV_PW9toO8U2ZNa0ACi8A==/split_lib_dependencies_apk.apk", zip file "/data/app/com.example.user.sprachtrainer-BGV_PW9toO8U2ZNa0ACi8A==/split_lib_resources_apk.apk", zip file "/data/app/com.example.user.sprachtrainer-BGV_PW9toO8U2ZNa0ACi8A==/split_lib_slice_0_apk.apk", zip file "/data/app/com.example.user.sprachtrainer-BGV_PW9toO8U2ZNa0ACi8A==/split_lib_slice_1_apk.apk", zip file "/data/app/com.example.user.sprachtrainer-BGV_PW9toO8U2ZNa0ACi8A==/split_lib_slice_2_apk.apk", zip file "/data/app/com.example.user.sprachtrainer-BGV_PW9toO8U2ZNa0ACi8A==/split_lib_slice_3_apk.apk", zip file "/data/app/com.example.user.sprachtrainer-BGV_PW9toO8U2ZNa0ACi8A==/split_lib_slice_4_apk.apk", zip file "/data/app/com.example.user.sprachtrainer-BGV_PW9toO8U2ZNa0
+     *         at java.lang.Class dalvik.system.BaseDexClassLoader.findClass(java.lang.String) (BaseDexClassLoader.java:93)
+     *         at java.lang.Class java.lang.ClassLoader.loadClass(java.lang.String, boolean) (ClassLoader.java:379)
+     *         at java.lang.Class java.lang.ClassLoader.loadClass(java.lang.String) (ClassLoader.java:312)
+     *         at void android.support.v4.view.ViewCompat.setBackground(android.view.View, android.graphics.drawable.Drawable) (ViewCompat.java:2341)
+     *         at void android.support.v7.widget.ActionBarContainer.<init>(android.content.Context, android.util.AttributeSet) (ActionBarContainer.java:62)
+     *         at java.lang.Object java.lang.reflect.Constructor.newInstance0(java.lang.Object[]) (Constructor.java:-2)
+     *         at java.lang.Object java.lang.reflect.Constructor.newInstance(java.lang.Object[]) (Constructor.java:334)
+     *         at android.view.View android.view.LayoutInflater.createView(java.lang.String, java.lang.String, android.util.AttributeSet) (LayoutInflater.java:647)
+     *         at android.view.View android.view.LayoutInflater.createViewFromTag(android.view.View, java.lang.String, android.content.Context, android.util.AttributeSet, boolean) (LayoutInflater.java:790)
+     *         at android.view.View android.view.LayoutInflater.createViewFromTag(android.view.View, java.lang.String, android.content.Context, android.util.AttributeSet) (LayoutInflater.java:730)
+     *         at void android.view.LayoutInflater.rInflate(org.xmlpull.v1.XmlPullParser, android.view.View, android.content.Context, android.util.AttributeSet, boolean) (LayoutInflater.java:863)
+     *         at void android.view.LayoutInflater.rInflateChildren(org.xmlpull.v1.XmlPullParser, android.view.View, android.util.AttributeSet, boolean) (LayoutInflater.java:824)
+     *         at android.view.View android.view.LayoutInflater.inflate(org.xmlpull.v1.XmlPullParser, android.view.ViewGroup, boolean) (LayoutInflater.java:515)
+     *         at android.view.View android.view.LayoutInflater.inflate(int, android.view.ViewGroup, boolean) (LayoutInflater.java:423)
+     *         at android.view.View android.view.LayoutInflater.inflate(int, android.view.ViewGroup) (LayoutInflater.java:374)
+     *         at android.view.ViewGroup android.support.v7.app.AppCompatDelegateImpl.createSubDecor() (AppCompatDelegateImpl.java:607)
+     *         at void android.support.v7.app.AppCompatDelegateImpl.ensureSubDecor() (AppCompatDelegateImpl.java:518)
+     *         at void android.support.v7.app.AppCompatDelegateImpl.setContentView(int) (AppCompatDelegateImpl.java:466)
+     *         at void android.support.v7.app.AppCompatActivity.setContentView(int) (AppCompatActivity.java:140)
+     *         at void com.example.user.sprachtrainer.LoginActivity.onCreate(android.os.Bundle) (LoginActivity.java:82)
+     *         at void android.app.Activity.performCreate(android.os.Bundle) (Activity.java:7183)
+     *         at void android.app.Instrumentation.callActivityOnCreate(android.app.Activity, android.os.Bundle) (Instrumentation.java:1220)
+     *         at android.app.Activity android.app.ActivityThread.performLaunchActivity(android.app.ActivityThread$ActivityClientRecord, android.content.Intent) (ActivityThread.java:2910)
+     *         at void android.app.ActivityThread.handleLaunchActivity(android.app.ActivityThread$ActivityClientRecord, android.content.Intent, java.lang.String) (ActivityThread.java:3032)
+     *         at void android.app.ActivityThread.-wrap11(android.app.ActivityThread, android.app.ActivityThread$ActivityClientRecord, android.content.Intent, java.lang.String) (ActivityThread.java:-1)
+     *         at void android.app.ActivityThread$H.handleMessage(android.os.Message) (ActivityThread.java:1696)
+     *         at void android.os.Handler.dispatchMessage(android.os.Message) (Handler.java:105)
+     *         at void android.os.Looper.loop() (Looper.java:164)
+     *         at void android.app.ActivityThread.main(java.lang.String[]) (ActivityThread.java:6944)
+     *         at java.lang.Object java.lang.reflect.Method.invoke(java.lang.Object, java.lang.Object[]) (Method.java:-2)
+     *         at void com.android.internal.os.Zygote$MethodAndArgsCaller.run() (Zygote.java:327)
+     *         at void com.android.internal.os.ZygoteInit.main(java.lang.String[]) (ZygoteInit.java:1374)
+     * I/zygote: Rejecting re-init on previously-failed class java.lang.Class<android.support.v4.view.ViewCompat$OnUnhandledKeyEventListenerWrapper>: java.lang.NoClassDefFoundError: Failed resolution of: Landroid/view/View$OnUnhandledKeyEventListener;
+     *         at void android.support.v4.view.ViewCompat.setBackground(android.view.View, android.graphics.drawable.Drawable) (ViewCompat.java:2341)
+     *         at void android.support.v7.widget.ActionBarContainer.<init>(android.content.Context, android.util.AttributeSet) (ActionBarContainer.java:62)
+     *         at java.lang.Object java.lang.reflect.Constructor.newInstance0(java.lang.Object[]) (Constructor.java:-2)
+     *         at java.lang.Object java.lang.reflect.Constructor.newInstance(java.lang.Object[]) (Constructor.java:334)
+     *         at android.view.View android.view.LayoutInflater.createView(java.lang.String, java.lang.String, android.util.AttributeSet) (LayoutInflater.java:647)
+     *         at android.view.View android.view.LayoutInflater.createViewFromTag(android.view.View, java.lang.String, android.content.Context, android.util.AttributeSet, boolean) (LayoutInflater.java:790)
+     *         at android.view.View android.view.LayoutInflater.createViewFromTag(android.view.View, java.lang.String, android.content.Context, android.util.AttributeSet) (LayoutInflater.java:730)
+     *         at void android.view.LayoutInflater.rInflate(org.xmlpull.v1.XmlPullParser, android.view.View, android.content.Context, android.util.AttributeSet, boolean) (LayoutInflater.java:863)
+     *         at void android.view.LayoutInflater.rInflateChildren(org.xmlpull.v1.XmlPullParser, android.view.View, android.util.AttributeSet, boolean) (LayoutInflater.java:824)
+     *         at android.view.View android.view.LayoutInflater.inflate(org.xmlpull.v1.XmlPullParser, android.view.ViewGroup, boolean) (LayoutInflater.java:515)
+     *         at android.view.View android.view.LayoutInflater.inflate(int, android.view.ViewGroup, boolean) (LayoutInflater.java:423)
+     *         at android.view.View android.view.LayoutInflater.inflate(int, android.view.ViewGroup) (LayoutInflater.java:374)
+     *         at android.view.ViewGroup android.support.v7.app.AppCompatDelegateImpl.createSubDecor() (AppCompatDelegateImpl.java:607)
+     *         at void android.support.v7.app.AppCompatDelegateImpl.ensureSubDecor() (AppCompatDelegateImpl.java:518)
+     *         at void android.support.v7.app.AppCompatDelegateImpl.setContentView(int) (AppCompatDelegateImpl.java:466)
+     *         at void android.support.v7.app.AppCompatActivity.setContentView(int) (AppCompatActivity.java:140)
+     *         at void com.example.user.sprachtrainer.LoginActivity.onCreate(android.os.Bundle) (LoginActivity.java:82)
+     *         at void android.app.Activity.performCreate(android.os.Bundle) (Activity.java:7183)
+     *         at void android.app.Instrumentation.callActivityOnCreate(android.app.Activity, android.os.Bundle) (Instrumentation.java:1220)
+     *         at android.app.Activity android.app.ActivityThread.performLaunchActivity(android.app.ActivityThread$ActivityClientRecord, android.content.Intent) (ActivityThread.java:2910)
+     *         at void android.app.ActivityThread.handleLaunchActivity(android.app.ActivityThread$ActivityClientRecord, android.content.Intent, java.lang.String) (ActivityThread.java:3032)
+     *         at void android.app.ActivityThread.-wrap11(android.app.ActivityThread, android.app.ActivityThread$ActivityClientRecord, android.content.Intent, java.lang.String) (ActivityThread.java:-1)
+     *         at void android.app.ActivityThread$H.handleMessage(android.os.Message) (ActivityThread.java:1696)
+     *         at void android.os.Handler.dispatchMessage(android.os.Message) (Handler.java:105)
+     *         at void android.os.Looper.loop() (Looper.java:164)
+     *         at void android.app.ActivityThread.main(java.lang.String[]) (ActivityThread.java:6944)
+     *         at java.lang.Object java.lang.reflect.Method.invoke(java.lang.Object, java.lang.Object[]) (Method.java:-2)
+     *         at void com.android.internal.os.Zygote$MethodAndArgsCaller.run() (Zygote.java:327)
+     *         at void com.android.internal.os.ZygoteInit.main(java.lang.String[]) (ZygoteInit.java:1374)
+     *     Caused by: java.lang.ClassNotFoundException: Didn't find class "android.view.View$OnUnhandledKeyEventListener" on path: DexPathList[[zip file "/data/app/com.example.user.sprachtrainer-BGV_PW9toO8U2ZNa0ACi8A==/base.apk", zip file "/data/app/com.example.user.sprachtrainer-BGV_PW9toO8U2ZNa0ACi8A==/split_lib_dependencies_apk.apk", zip file "/data/app/com.example.user.sprachtrainer-BGV_PW9toO8U2ZNa0ACi8A==/split_lib_resources_apk.apk", zip file "/data/app/com.example.user.sprachtrainer-BGV_PW9toO8U2ZNa0ACi8A==/split_lib_slice_0_apk.apk", zip file "/data/app/com.example.user.sprachtrainer-BGV_PW9toO8U2ZNa0ACi8A==/split_lib_slice_1_apk.apk", zip file "/data/app/com.example.user.sprachtrainer-BGV_PW9toO8U2ZNa0ACi8A==/split_lib_slice_2_apk.apk", zip file "/data/app/com.example.user.sprachtrainer-BGV_PW9toO8U2ZNa0ACi8A==/split_lib_slice_3_apk.apk", zip file "/data/app/com.example.user.sprachtrainer-BGV_PW9toO8U2ZNa0ACi8A==/split_lib_slice_4_apk.apk", zip file "/data/app/com.example.user.sprachtrainer-BGV_PW9toO8U2ZNa0
+     *         at java.lang.Class dalvik.system.BaseDexClassLoader.findClass(java.lang.String) (BaseDexClassLoader.java:93)
+     *         at java.lang.Class java.lang.ClassLoader.loadClass(java.lang.String, boolean) (ClassLoader.java:379)
+     * I/zygote:     at java.lang.Class java.lang.ClassLoader.loadClass(java.lang.String) (ClassLoader.java:312)
+     *         at void android.support.v4.view.ViewCompat.setBackground(android.view.View, android.graphics.drawable.Drawable) (ViewCompat.java:2341)
+     *         at void android.support.v7.widget.ActionBarContainer.<init>(android.content.Context, android.util.AttributeSet) (ActionBarContainer.java:62)
+     *         at java.lang.Object java.lang.reflect.Constructor.newInstance0(java.lang.Object[]) (Constructor.java:-2)
+     *         at java.lang.Object java.lang.reflect.Constructor.newInstance(java.lang.Object[]) (Constructor.java:334)
+     *         at android.view.View android.view.LayoutInflater.createView(java.lang.String, java.lang.String, android.util.AttributeSet) (LayoutInflater.java:647)
+     *         at android.view.View android.view.LayoutInflater.createViewFromTag(android.view.View, java.lang.String, android.content.Context, android.util.AttributeSet, boolean) (LayoutInflater.java:790)
+     *         at android.view.View android.view.LayoutInflater.createViewFromTag(android.view.View, java.lang.String, android.content.Context, android.util.AttributeSet) (LayoutInflater.java:730)
+     *         at void android.view.LayoutInflater.rInflate(org.xmlpull.v1.XmlPullParser, android.view.View, android.content.Context, android.util.AttributeSet, boolean) (LayoutInflater.java:863)
+     *         at void android.view.LayoutInflater.rInflateChildren(org.xmlpull.v1.XmlPullParser, android.view.View, android.util.AttributeSet, boolean) (LayoutInflater.java:824)
+     *         at android.view.View android.view.LayoutInflater.inflate(org.xmlpull.v1.XmlPullParser, android.view.ViewGroup, boolean) (LayoutInflater.java:515)
+     *         at android.view.View android.view.LayoutInflater.inflate(int, android.view.ViewGroup, boolean) (LayoutInflater.java:423)
+     *         at android.view.View android.view.LayoutInflater.inflate(int, android.view.ViewGroup) (LayoutInflater.java:374)
+     *         at android.view.ViewGroup android.support.v7.app.AppCompatDelegateImpl.createSubDecor() (AppCompatDelegateImpl.java:607)
+     *         at void android.support.v7.app.AppCompatDelegateImpl.ensureSubDecor() (AppCompatDelegateImpl.java:518)
+     *         at void android.support.v7.app.AppCompatDelegateImpl.setContentView(int) (AppCompatDelegateImpl.java:466)
+     *         at void android.support.v7.app.AppCompatActivity.setContentView(int) (AppCompatActivity.java:140)
+     *         at void com.example.user.sprachtrainer.LoginActivity.onCreate(android.os.Bundle) (LoginActivity.java:82)
+     *         at void android.app.Activity.performCreate(android.os.Bundle) (Activity.java:7183)
+     *         at void android.app.Instrumentation.callActivityOnCreate(android.app.Activity, android.os.Bundle) (Instrumentation.java:1220)
+     *         at android.app.Activity android.app.ActivityThread.performLaunchActivity(android.app.ActivityThread$ActivityClientRecord, android.content.Intent) (ActivityThread.java:2910)
+     *         at void android.app.ActivityThread.handleLaunchActivity(android.app.ActivityThread$ActivityClientRecord, android.content.Intent, java.lang.String) (ActivityThread.java:3032)
+     *         at void android.app.ActivityThread.-wrap11(android.app.ActivityThread, android.app.ActivityThread$ActivityClientRecord, android.content.Intent, java.lang.String) (ActivityThread.java:-1)
+     *         at void android.app.ActivityThread$H.handleMessage(android.os.Message) (ActivityThread.java:1696)
+     *         at void android.os.Handler.dispatchMessage(android.os.Message) (Handler.java:105)
+     *         at void android.os.Looper.loop() (Looper.java:164)
+     *         at void android.app.ActivityThread.main(java.lang.String[]) (ActivityThread.java:6944)
+     *         at java.lang.Object java.lang.reflect.Method.invoke(java.lang.Object, java.lang.Object[]) (Method.java:-2)
+     *         at void com.android.internal.os.Zygote$MethodAndArgsCaller.run() (Zygote.java:327)
+     *         at void com.android.internal.os.ZygoteInit.main(java.lang.String[]) (ZygoteInit.java:1374)
+     * D/ScrollView: initGoToTop
+     * I/TextInputLayout: EditText added is not a TextInputEditText. Please switch to using that class instead.
+     * I/TextInputLayout: EditText added is not a TextInputEditText. Please switch to using that class instead.
+     * D/NetworkSecurityConfig: No Network Security Config specified, using platform default
+     * D/OpenGLRenderer: HWUI GL Pipeline
+     * D/ViewRootImpl@f9d170e[LoginActivity]: setView = DecorView@5bd452f[LoginActivity] TM=true MM=false
+     * D/ViewRootImpl@f9d170e[LoginActivity]: dispatchAttachedToWindow
+     * V/Surface: sf_framedrop debug : 0x4f4c, game : false, logging : 0
+     * D/ViewRootImpl@f9d170e[LoginActivity]: Relayout returned: old=[0,0][0,0] new=[0,0][720,1480] result=0x7 surface={valid=true 3656525824} changed=true
+     * I/OpenGLRenderer: Initialized EGL, version 1.4
+     * D/OpenGLRenderer: Swap behavior 2
+     * D/libGLESv1: STS_GLApi : DTS, ODTC are not allowed for Package : com.example.user.sprachtrainer
+     * D/mali_winsys: EGLint new_window_surface(egl_winsys_display *, void *, EGLSurface, EGLConfig, egl_winsys_surface **, egl_color_buffer_format *, EGLBoolean) returns 0x3000,  [720x1480]-format:1
+     * D/OpenGLRenderer: eglCreateWindowSurface = 0xcca5a480
+     * D/ScrollView:  onsize change changed
+     * D/ViewRootImpl@f9d170e[LoginActivity]: MSG_RESIZED_REPORT: frame=Rect(0, 0 - 720, 1480) ci=Rect(0, 48 - 0, 96) vi=Rect(0, 48 - 0, 96) or=1
+     * D/ViewRootImpl@f9d170e[LoginActivity]: MSG_WINDOW_FOCUS_CHANGED 1
+     * V/InputMethodManager: Starting input: tba=android.view.inputmethod.EditorInfo@326c05d nm : com.example.user.sprachtrainer ic=com.android.internal.widget.EditableInputConnection@b0a6dd2
+     * I/InputMethodManager: startInputInner - mService.startInputOrWindowGainedFocus
+     * W/View: dispatchProvideAutofillStructure(): not laid out, ignoring
+     * W/View: dispatchProvideAutofillStructure(): not laid out, ignoring
+     * I/AssistStructure: Flattened final assist data: 3064 bytes, containing 1 windows, 12 views
+     * V/InputMethodManager: Starting input: tba=android.view.inputmethod.EditorInfo@352eea3 nm : com.example.user.sprachtrainer ic=com.android.internal.widget.EditableInputConnection@41775a0
+     * D/ViewRootImpl@f9d170e[LoginActivity]: MSG_RESIZED: frame=Rect(0, 0 - 720, 1480) ci=Rect(0, 48 - 0, 678) vi=Rect(0, 48 - 0, 678) or=1
+     * D/ViewRootImpl@f9d170e[LoginActivity]: Relayout returned: old=[0,0][720,1480] new=[0,0][720,1480] result=0x1 surface={valid=true 3656525824} changed=false
+     * D/ScrollView:  onsize change changed
+     * I/zygote: Do partial code cache collection, code=30KB, data=25KB
+     * I/zygote: After code cache collection, code=30KB, data=25KB
+     *     Increasing code cache capacity to 128KB
+     * D/ViewRootImpl@f9d170e[LoginActivity]: ViewPostIme pointer 0
+     * D/ViewRootImpl@f9d170e[LoginActivity]: ViewPostIme pointer 1
+     * D/InputMethodManager: SSI - flag : 0 Pid : 18016 view : com.example.user.sprachtrainer
+     * I/zygote: Do partial code cache collection, code=51KB, data=51KB
+     * I/zygote: After code cache collection, code=51KB, data=51KB
+     *     Increasing code cache capacity to 256KB
+     * I/zygote: Compiler allocated 4MB to compile void android.view.ViewRootImpl.performTraversals()
+     * I/zygote: Do full code cache collection, code=125KB, data=123KB
+     * I/zygote: After code cache collection, code=108KB, data=94KB
+     * D/ViewRootImpl@f9d170e[LoginActivity]: ViewPostIme pointer 0
+     * D/ViewRootImpl@f9d170e[LoginActivity]: ViewPostIme pointer 1
+     * V/InputMethodManager: Starting input: tba=android.view.inputmethod.EditorInfo@b4781ce nm : com.example.user.sprachtrainer ic=com.android.internal.widget.EditableInputConnection@a5338ef
+     * I/InputMethodManager: startInputInner - mService.startInputOrWindowGainedFocus
+     * D/InputMethodManager: SSI - flag : 0 Pid : 18016 view : com.example.user.sprachtrainer
+     * D/ViewRootImpl@f9d170e[LoginActivity]: ViewPostIme pointer 0
+     * D/ViewRootImpl@f9d170e[LoginActivity]: ViewPostIme pointer 1
+     * I/zygote: Do partial code cache collection, code=114KB, data=110KB
+     *     After code cache collection, code=114KB, data=110KB
+     *     Increasing code cache capacity to 512KB
+     * D/ViewRootImpl@52b2439[PopupWindow:6bd3d32]: setView = android.widget.PopupWindow$PopupDecorView{57dfa7e V.E...... ......I. 0,0-0,0} TM=true MM=false
+     * D/ViewRootImpl@52b2439[PopupWindow:6bd3d32]: dispatchAttachedToWindow
+     * V/Surface: sf_framedrop debug : 0x4f4c, game : false, logging : 0
+     * D/ViewRootImpl@52b2439[PopupWindow:6bd3d32]: Relayout returned: old=[0,0][0,0] new=[304,387][710,497] result=0x7 surface={valid=true 3404666880} changed=true
+     * D/mali_winsys: EGLint new_window_surface(egl_winsys_display *, void *, EGLSurface, EGLConfig, egl_winsys_surface **, egl_color_buffer_format *, EGLBoolean) returns 0x3000,  [406x110]-format:1
+     * D/OpenGLRenderer: eglCreateWindowSurface = 0xcca5ab00
+     * D/ViewRootImpl@52b2439[PopupWindow:6bd3d32]: MSG_RESIZED_REPORT: frame=Rect(304, 387 - 710, 497) ci=Rect(0, 0 - 0, 0) vi=Rect(0, 0 - 0, 0) or=1
+     * D/OpenGLRenderer: eglDestroySurface = 0xcca5ab00
+     * D/ViewRootImpl@52b2439[PopupWindow:6bd3d32]: dispatchDetachedFromWindow
+     * D/InputEventReceiver: channel '6039745 PopupWindow:6bd3d32 (client)' ~ Disposing input event receiver.
+     *     channel '6039745 PopupWindow:6bd3d32 (client)' ~NativeInputEventReceiver.
+     * D/ViewRootImpl@f9d170e[LoginActivity]: Relayout returned: old=[0,0][720,1480] new=[0,0][720,1480] result=0x1 surface={valid=true 3656525824} changed=false
+     * D/ViewRootImpl@f9d170e[LoginActivity]: Relayout returned: old=[0,0][720,1480] new=[0,0][720,1480] result=0x1 surface={valid=true 3656525824} changed=false
+     * V/InputMethodManager: Starting input: tba=android.view.inputmethod.EditorInfo@f59e243 nm : com.example.user.sprachtrainer ic=com.android.internal.widget.EditableInputConnection@f07f0c0
+     * I/InputMethodManager: startInputInner - mService.startInputOrWindowGainedFocus
+     * D/ViewRootImpl@f9d170e[LoginActivity]: MSG_WINDOW_FOCUS_CHANGED 0
+     * D/OpenGLRenderer: eglDestroySurface = 0xcca5a480gister the account specified by the login form.
      * If there are form errors (invalid email, missing fields, etc.), the
      * errors are presented and no actual login attempt is made.
      */
@@ -151,11 +390,9 @@ public class LoginActivity extends AppCompatActivity implements LoaderCallbacks<
         // Reset errors.
         mEmailView.setError(null);
         mPasswordView.setError(null);
-
         // Store values at the time of the login attempt.
         String email = mEmailView.getText().toString();
         String password = mPasswordView.getText().toString();
-
         boolean cancel = false;
         View focusView = null;
 
@@ -185,6 +422,42 @@ public class LoginActivity extends AppCompatActivity implements LoaderCallbacks<
             // Show a progress spinner, and kick off a background task to
             // perform the user login attempt.
             showProgress(true);
+            Call<User> loginCall=SprachtrainerServiceApi.login(new Login(email,password));
+            loginCall.enqueue(new Callback<User>() {
+                @Override
+                public void onResponse(Call<User> call, Response<User> response) {
+                    showProgress(false);
+                    //errors
+                    String error;
+                    Gson gson = new Gson();
+                    if(!response.isSuccessful()){
+                        if(response.errorBody().contentType().subtype().equals("application/Json")){
+                          //  ApiError apiError =ApiError.fromResponseBody(response.errorBody());
+                            //error= apiError.getMessage();
+                            Toast.makeText(getApplicationContext(), "Credential are not valid",
+                                    Toast.LENGTH_SHORT).show();
+
+                            Log.d("LoginActivity", "error de coneecion");
+                        }
+
+                    }else{
+                        Log.d("LoginActivity",response.body().getToken() );
+                        error = response.message();
+                    }
+
+                    // Guardar afiliado en preferencias
+
+                   // SessionPrefs.get().saveAffiliate(response.body());
+                }
+
+                @Override
+                public void onFailure(Call<User> call, Throwable t) {
+
+                }
+            });
+
+
+
             mAuthTask = new UserLoginTask(email, password);
             mAuthTask.execute((Void) null);
         }
@@ -236,39 +509,7 @@ public class LoginActivity extends AppCompatActivity implements LoaderCallbacks<
         }
     }
 
-    @Override
-    public Loader<Cursor> onCreateLoader(int i, Bundle bundle) {
-        return new CursorLoader(this,
-                // Retrieve data rows for the device user's 'profile' contact.
-                Uri.withAppendedPath(ContactsContract.Profile.CONTENT_URI,
-                        ContactsContract.Contacts.Data.CONTENT_DIRECTORY), ProfileQuery.PROJECTION,
 
-                // Select only email addresses.
-                ContactsContract.Contacts.Data.MIMETYPE +
-                        " = ?", new String[]{ContactsContract.CommonDataKinds.Email
-                .CONTENT_ITEM_TYPE},
-
-                // Show primary email addresses first. Note that there won't be
-                // a primary email address if the user hasn't specified one.
-                ContactsContract.Contacts.Data.IS_PRIMARY + " DESC");
-    }
-
-    @Override
-    public void onLoadFinished(Loader<Cursor> cursorLoader, Cursor cursor) {
-        List<String> emails = new ArrayList<>();
-        cursor.moveToFirst();
-        while (!cursor.isAfterLast()) {
-            emails.add(cursor.getString(ProfileQuery.ADDRESS));
-            cursor.moveToNext();
-        }
-
-        addEmailsToAutoComplete(emails);
-    }
-
-    @Override
-    public void onLoaderReset(Loader<Cursor> cursorLoader) {
-
-    }
 
     private void addEmailsToAutoComplete(List<String> emailAddressCollection) {
         //Create adapter to tell the AutoCompleteTextView what to show in its dropdown list.
