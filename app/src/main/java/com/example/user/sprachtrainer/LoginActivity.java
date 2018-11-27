@@ -3,6 +3,7 @@ package com.example.user.sprachtrainer;
 import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
 import android.annotation.TargetApi;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.support.annotation.NonNull;
 import android.support.design.widget.Snackbar;
@@ -32,21 +33,39 @@ import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.android.volley.AuthFailureError;
+import com.android.volley.NetworkResponse;
+import com.android.volley.Request;
+import com.android.volley.RequestQueue;
+import com.android.volley.Response;
+import com.android.volley.VolleyError;
+import com.android.volley.VolleyLog;
+import com.android.volley.toolbox.HttpHeaderParser;
+import com.android.volley.toolbox.JsonObjectRequest;
+import com.android.volley.toolbox.StringRequest;
+import com.android.volley.toolbox.Volley;
+import com.example.user.sprachtrainer.io.VolleySingleton;
+import com.example.user.sprachtrainer.io.VolleySingleton;
 import com.example.user.sprachtrainer.models.Login;
 import com.example.user.sprachtrainer.models.User;
 import com.example.user.sprachtrainer.utils.SessionPrefs;
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonIOException;
 
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.lang.RuntimeException;
 import  java.lang.Object;
+import java.util.Map;
 
-import retrofit2.Call;
-import retrofit2.Callback;
-import retrofit2.Response;
-import retrofit2.Retrofit;
-import retrofit2.converter.gson.GsonConverterFactory;
 
 import static android.Manifest.permission.READ_CONTACTS;
 
@@ -58,6 +77,7 @@ public class LoginActivity extends AppCompatActivity  {
      * Id to identity READ_CONTACTS permission request.
      */
     private static final int REQUEST_READ_CONTACTS = 0;
+    public static  String BASE_URL = "http://sprachtrainer.naylamp1.com/v2/public/index.php/user/auth/query";
     /**
      * A dummy authentication store containing known user names and passwords.
      * TODO: remove after connecting to a real authentication system.
@@ -68,8 +88,8 @@ public class LoginActivity extends AppCompatActivity  {
     /**
      * Keep track of the login task to ensure we can cancel it if requested.
      */
-    private Retrofit mRestAdapter;
-    private SprachtrainerService SprachtrainerServiceApi;
+   /* public Retrofit mRestAdapter;
+    private SprachtrainerService SprachtrainerServiceApi;*/
 
     private UserLoginTask mAuthTask = null;
 
@@ -85,9 +105,12 @@ public class LoginActivity extends AppCompatActivity  {
         setContentView(R.layout.activity_login);
 
         //Set up Server connection
-        mRestAdapter = new Retrofit.Builder().baseUrl(SprachtrainerService.BASE_URL).
-                addConverterFactory(GsonConverterFactory.create()).build();
-        SprachtrainerServiceApi= mRestAdapter.create(SprachtrainerService.class);
+
+
+       /* mRestAdapter = new Retrofit.Builder().baseUrl(SprachtrainerService.BASE_URL).
+                addConverterFactory(ScalarsConverterFactory.create())
+                .addConverterFactory(GsonConverterFactory.create()).build();
+        SprachtrainerServiceApi= mRestAdapter.create(SprachtrainerService.class);*/
         //
         // Set up the login form.
         mEmailView = (AutoCompleteTextView) findViewById(R.id.email);
@@ -382,7 +405,7 @@ public class LoginActivity extends AppCompatActivity  {
      * If there are form errors (invalid email, missing fields, etc.), the
      * errors are presented and no actual login attempt is made.
      */
-    private void attemptLogin() {
+    private void attemptLogin()  {
         if (mAuthTask != null) {
             return;
         }
@@ -391,8 +414,9 @@ public class LoginActivity extends AppCompatActivity  {
         mEmailView.setError(null);
         mPasswordView.setError(null);
         // Store values at the time of the login attempt.
-        String email = mEmailView.getText().toString();
-        String password = mPasswordView.getText().toString();
+        final String email = mEmailView.getText().toString();
+        final String password = mPasswordView.getText().toString();
+
         boolean cancel = false;
         View focusView = null;
 
@@ -422,7 +446,81 @@ public class LoginActivity extends AppCompatActivity  {
             // Show a progress spinner, and kick off a background task to
             // perform the user login attempt.
             showProgress(true);
-            Call<User> loginCall=SprachtrainerServiceApi.login(new Login(email,password));
+            RequestQueue requestQueue = Volley.newRequestQueue(this);
+            //Call our volley library
+            JSONObject jsonBody = new JSONObject();
+            try {
+                jsonBody.put("Email", email);
+                jsonBody.put("Password", password);
+                final String requestBody = jsonBody.toString();
+            } catch (JSONException e) {
+                e.printStackTrace();
+            }
+            final String requestBody = jsonBody.toString();
+            String uri = BASE_URL+"?Email="+ email+"&Password="+password;
+            StringRequest  stringRequest = new StringRequest(Request.Method.GET,uri,
+                    new Response.Listener<String>() {
+
+                        @Override
+                        public void onResponse(String  response) {
+                            Log.i("VOLLEY", response);
+
+                            Toast.makeText(getApplicationContext(), "Response:  " + response.toString(), Toast.LENGTH_SHORT).show();
+                            try {
+                                JSONObject obj = new JSONObject(response);
+                                //storing the user in shared preferences
+                                SessionPrefs.getInstance(getApplicationContext()).storeUserName(obj.getString("Token"));
+                                finish();
+                                startActivity(new Intent(getApplicationContext(), MainActivity.class));
+                            } catch (JSONException e) {
+                                e.printStackTrace();
+                            }
+                            startActivity(new Intent(getApplicationContext(),MainActivity.class));
+                        }
+                    },new Response.ErrorListener() {
+                @Override
+                public void onErrorResponse(VolleyError error) {
+                    Log.e("VOLLEY", error.toString());
+                    Toast.makeText(getApplicationContext(),"Connection Error"+error, Toast.LENGTH_SHORT).show();
+                    error.printStackTrace();
+                }
+            });
+
+
+            /*{
+                @Override
+                public String getBodyContentType() {
+                    return "application/json; charset=utf-8";
+                }
+
+                @Override
+                public byte[] getBody() throws AuthFailureError {
+                    try {
+                        return requestBody == null ? null : requestBody.getBytes("utf-8");
+                    } catch (UnsupportedEncodingException uee) {
+                        VolleyLog.wtf("Unsupported Encoding while trying to get the bytes of %s using %s", requestBody, "utf-8");
+                        return null;
+                    }
+                }
+
+                @Override
+                protected Response<String> parseNetworkResponse(NetworkResponse response) {
+
+                    String parsed;
+                    try {
+                        parsed = new String(response.data, HttpHeaderParser.parseCharset(response.headers));
+                    } catch (UnsupportedEncodingException e) {
+                        parsed = new String(response.data);
+                    }
+                    return Response.success(parsed, HttpHeaderParser.parseCacheHeaders(response));
+
+                }*/
+            ;
+
+           // requestQueue.add(stringRequest);
+            VolleySingleton.getInstance(LoginActivity.this).addToRequestQueue(stringRequest);
+
+           /* Call<User> loginCall=SprachtrainerServiceApi.login(new Login(email,password));
             loginCall.enqueue(new Callback<User>() {
                 @Override
                 public void onResponse(Call<User> call, Response<User> response) {
@@ -431,35 +529,46 @@ public class LoginActivity extends AppCompatActivity  {
                     String error;
                     Gson gson = new Gson();
                     if(!response.isSuccessful()){
-                        if(response.errorBody().contentType().subtype().equals("application/Json")){
+
+                        if (response.code() == 400 ) {
+                            Log.d("LoginActivity", "onResponse - Status : " + response.code());
+                        }
+                        if(response.errorBody().contentType().subtype().equals("application/json")){
                           //  ApiError apiError =ApiError.fromResponseBody(response.errorBody());
                             //error= apiError.getMessage();
                             Toast.makeText(getApplicationContext(), "Credential are not valid",
                                     Toast.LENGTH_SHORT).show();
 
-                            Log.d("LoginActivity", "error de coneecion");
+                            Log.d("LoginActivity", "error de conection");
                         }
 
                     }else{
-                        Log.d("LoginActivity",response.body().getToken() );
+
+                        int statusCode = response.code();
+                        User user =response.body();
+                        Log.e("LoginActivity","apt"+ response.errorBody());
                         error = response.message();
                     }
 
                     // Guardar afiliado en preferencias
 
                    // SessionPrefs.get().saveAffiliate(response.body());
+
+
                 }
 
                 @Override
                 public void onFailure(Call<User> call, Throwable t) {
 
                 }
-            });
+            });*/
 
 
 
-            mAuthTask = new UserLoginTask(email, password);
-            mAuthTask.execute((Void) null);
+
+
+           // mAuthTask = new UserLoginTask(email, password);
+            //mAuthTask.execute((Void) null);
         }
     }
 
@@ -507,28 +616,6 @@ public class LoginActivity extends AppCompatActivity  {
             mProgressView.setVisibility(show ? View.VISIBLE : View.GONE);
             mLoginFormView.setVisibility(show ? View.GONE : View.VISIBLE);
         }
-    }
-
-
-
-    private void addEmailsToAutoComplete(List<String> emailAddressCollection) {
-        //Create adapter to tell the AutoCompleteTextView what to show in its dropdown list.
-        ArrayAdapter<String> adapter =
-                new ArrayAdapter<>(LoginActivity.this,
-                        android.R.layout.simple_dropdown_item_1line, emailAddressCollection);
-
-        mEmailView.setAdapter(adapter);
-    }
-
-
-    private interface ProfileQuery {
-        String[] PROJECTION = {
-                ContactsContract.CommonDataKinds.Email.ADDRESS,
-                ContactsContract.CommonDataKinds.Email.IS_PRIMARY,
-        };
-
-        int ADDRESS = 0;
-        int IS_PRIMARY = 1;
     }
 
     /**

@@ -4,8 +4,8 @@ import com.google.gson.annotations.SerializedName;
 
 public class Login {
 
-    @SerializedName("id")
-    private String Name;
+    /*@SerializedName("id")
+    private String Name;*/
     private String Email;
     private String Password;
 
@@ -14,13 +14,13 @@ public class Login {
         this.Password=Password;
     }
 
-    public String getName() {
+  /*  public String getName() {
         return Name;
     }
 
     public void setName(String name) {
         Name = name;
-    }
+    }*/
 
     public String getEmail() {
         return Email;
